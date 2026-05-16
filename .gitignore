@@ -1,0 +1,4 @@
+restaurant/
+.env
+*.pyc
+__pycache__/
