@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "aptPackages": ["default-libmysqlclient-dev", "build-essential", "pkg-config"]
+  },
+  "deploy": {
+    "startCommand": "gunicorn restaurant_management_system_djangoBackend.wsgi:application",
+    "restartPolicyType": "ON_FAILURE",
+    "preDeployCommand": "python manage.py collectstatic --no-input && python manage.py migrate"
+  }
+}

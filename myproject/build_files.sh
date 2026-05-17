@@ -1,6 +1,12 @@
-#!/bin/bash
-echo "==> Building Dependencies..."
-python3 -m pip install -r requirements.txt
+#!/usr/bin/env bash
+# exit on error
+set -o errexit
 
-echo "==> Gathering Static Files..."
-python3 manage.py collectstatic --noinput --clear
+# Install dependencies
+pip install -r requirements.txt
+
+# Process static assets using WhiteNoise
+python manage.py collectstatic --no-input
+
+# Run database migrations safely against PlanetScale
+python manage.py migrate

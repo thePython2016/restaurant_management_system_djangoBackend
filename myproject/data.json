@@ -1,0 +1,65 @@
+[
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$BOucuGdMrrcXShfsjH9GI8$UFGVGW+cjc/8r+xpaQoGb8s0o0/WJ07pYlH/cZgalwY=",
+    "last_login": "2025-11-04T09:02:31.364Z",
+    "is_superuser": false,
+    "username": "demo",
+    "first_name": "Omari ",
+    "last_name": "Jumapilli",
+    "email": "demo@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2025-11-04T09:02:12.471Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "fields": {
+    "password": "!RudMwGjnbGgiBBhihl0K70aPBsZneXi70pkaj2nx",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "infonet20th",
+    "first_name": "omari",
+    "last_name": "jumapili",
+    "email": "infonet20th@gmail.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-05-17T06:56:04.377Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "sites.site",
+  "fields": {
+    "domain": "example.com",
+    "name": "example.com"
+  }
+},
+{
+  "model": "socialaccount.socialaccount",
+  "pk": 1,
+  "fields": {
+    "user": [
+      "infonet20th"
+    ],
+    "provider": "google",
+    "uid": "111276668317878029805",
+    "last_login": "2026-05-17T06:56:04.415Z",
+    "date_joined": "2026-05-17T06:56:04.415Z",
+    "extra_data": {
+      "id": "111276668317878029805",
+      "email": "infonet20th@gmail.com",
+      "verified_email": true,
+      "name": "omari jumapili",
+      "given_name": "omari",
+      "family_name": "jumapili",
+      "picture": "https://lh3.googleusercontent.com/a/ACg8ocJSHXqFJvV9DHROt__iMeIGcRgPHUnw_30CIKZybB6ZJht3UAE=s96-c"
+    }
+  }
+}
+]
