@@ -1,2 +1,0 @@
-[tool.vercel]
-entrypoint = "myproject.wsgi:application"
