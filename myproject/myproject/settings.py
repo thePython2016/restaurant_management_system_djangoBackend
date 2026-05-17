@@ -5,6 +5,11 @@ import warnings
 from django.utils.translation import gettext_lazy as _
 from decouple import config
 
+# Vercel/serverless: use PyMySQL instead of mysqlclient (no native compile)
+if os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'):
+    import pymysql
+    pymysql.install_as_MySQLdb()
+
 # -------------------------
 # Paths
 # -------------------------
@@ -127,7 +132,6 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
-]
 
 # -------------------------
 # URL / WSGI / ASGI
@@ -176,6 +180,9 @@ else:
             'NAME': ':memory:',
         }
     }
+
+# django-allauth: MariaDB does not support conditional unique constraints (harmless)
+SILENCED_SYSTEM_CHECKS = ['models.W036']
 
 # -------------------------
 # Password validation
