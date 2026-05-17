@@ -16,17 +16,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env(DEBUG=(bool, False))
 env_file = os.path.join(BASE_DIR, '.env')
 
-if not os.path.exists(env_file):
-    raise FileNotFoundError(f"⚠️ .env file not found at {env_file}")
-
-env.read_env(env_file)
+if os.path.exists(env_file):
+    env.read_env(env_file)
 
 # -------------------------
 # Security
 # -------------------------
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+ALLOWED_HOSTS = env.list(
+    'ALLOWED_HOSTS',
+    default=['localhost', '127.0.0.1', '.vercel.app'],
+)
 
 # -------------------------
 # CORS

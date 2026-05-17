@@ -1,7 +1,13 @@
 import os
+import sys
+from pathlib import Path
+
+# Project root (myproject/) must be on PYTHONPATH for Django apps.
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
+
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'restaurant-management-system-django-backend.settings')
-
-application = get_wsgi_application()
-app = application  # Vercel expects "app"
+app = get_wsgi_application()

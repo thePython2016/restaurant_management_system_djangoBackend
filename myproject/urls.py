@@ -15,7 +15,12 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path,include
+from django.http import JsonResponse
+from django.urls import path, include
+
+
+def home(request):
+    return JsonResponse({"message": "Django is working on Vercel!"})
 
 
 urlpatterns = [
@@ -35,10 +40,4 @@ urlpatterns += [
 #     path('auth/password/reset/confirm/<str:uid>/<str:token>/', 
 #      include('djoser.urls'), name='password_reset_confirm'),
 # ]
-
-from django.http import JsonResponse
-
-def home(request):
-    return JsonResponse({"message": "Django is working on Vercel!"})
-
 

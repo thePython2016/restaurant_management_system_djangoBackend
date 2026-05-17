@@ -15,9 +15,14 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from custom_password_reset import custom_password_reset
+
+
+def health(request):
+    return JsonResponse({"status": "ok", "service": "restaurant-api"})
 # from bulkSMS import views
 
 # Create router for bulkSMS API
@@ -25,6 +30,7 @@ from custom_password_reset import custom_password_reset
 # router.register(r'sms-campaigns', views.SMSCampaignViewSet, basename='smscampaign')
 
 urlpatterns = [
+    path('', health),
     path('admin/', admin.site.urls),
     path('', include('Customer.urls'), name='customers'),
     path('', include('Useraccount.urls'), name='user'),
