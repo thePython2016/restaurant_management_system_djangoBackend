@@ -1,5 +1,6 @@
-# build_files.sh
-echo "Building the project..."
-python3.9 -m pip install -r requirements.txt
-python3.9 manage.py collectstatic --noinput --clear
-echo "Build complete!"
+#!/bin/bash
+echo "==> Building Dependencies..."
+python3 -m pip install -r requirements.txt
+
+echo "==> Gathering Static Files..."
+python3 manage.py collectstatic --noinput --clear
