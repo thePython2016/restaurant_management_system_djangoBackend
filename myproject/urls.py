@@ -19,6 +19,7 @@ from django.urls import path,include
 
 
 urlpatterns = [
+    path('', home),
     path('admin/', admin.site.urls),
     path('',include('Customer.urls'),name='customers'),
     path('',include('Useraccount.urls'),name='user')
@@ -34,3 +35,10 @@ urlpatterns += [
 #     path('auth/password/reset/confirm/<str:uid>/<str:token>/', 
 #      include('djoser.urls'), name='password_reset_confirm'),
 # ]
+
+from django.http import JsonResponse
+
+def home(request):
+    return JsonResponse({"message": "Django is working on Vercel!"})
+
+
