@@ -1529,10 +1529,14 @@ DEBUG = os.environ.get("DEBUG", "False") == "True"
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
 
 # Database connection parsing
+import os
+import dj_database_url
+
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600
+        engine='django.db.backends.mysql', 
+        conn_max_age=600,
     )
 }
 

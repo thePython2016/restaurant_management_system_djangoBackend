@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "installCommand": "pip install -r myproject/requirements-vercel.txt",
+  "buildCommand": "cd myproject && python manage.py collectstatic --noinput",
+  "builds": [
+    {
+      "src": "myproject/api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb",
+        "runtime": "python3.12"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "myproject/api/index.py"
+    }
+  ]
+}
