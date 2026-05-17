@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'whitenoise.runserver_nostatic',
     # Channels
     'channels',
     # Your apps
@@ -121,6 +122,7 @@ REST_FRAMEWORK = {
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # Add right here
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -1516,5 +1518,31 @@ load_dotenv()  # loads .env
 
 
 # OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+#Vercel Conf for React Front end
 
 
+import os
+import dj_database_url
+
+# Security configurations
+DEBUG = os.environ.get("DEBUG", "False") == "True"
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
+
+# Database connection parsing
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=600
+    )
+}
+
+# Static file settings for WhiteNoise
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Allow your Vercel React app to communicate with Django
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173/,  # Your local React development URL
+    "https://restaurant-management-system-pi-one.vercel.app/"  # REPLACE with your actual Vercel domain!
+]
