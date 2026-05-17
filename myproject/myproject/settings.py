@@ -1,14 +1,14 @@
 import os
-from pathlib import Path
-import environ
 import warnings
+from pathlib import Path
+from datetime import timedelta
 from django.utils.translation import gettext_lazy as _
+import dj_database_url
 from decouple import config
+import pymysql
 
-# Vercel/serverless: use PyMySQL instead of mysqlclient (no native compile)
-if os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'):
-    import pymysql
-    pymysql.install_as_MySQLdb()
+# Force PyMySQL to act as standard MySQL client driver
+pymysql.install_as_MySQLdb()
 
 # -------------------------
 # Paths
@@ -16,36 +16,30 @@ if os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'):
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # -------------------------
-# Environment Variables
+# Security & Environment
 # -------------------------
-env = environ.Env(DEBUG=(bool, False))
-env_file = os.path.join(BASE_DIR, '.env')
+DEBUG = os.environ.get("DEBUG", "False") == "True"
 
-if os.path.exists(env_file):
-    env.read_env(env_file)
+SECRET_KEY = os.environ.get('SECRET_KEY', 'change-me-set-SECRET_KEY-in-render-env')
 
-# -------------------------
-# Security
-# -------------------------
-SECRET_KEY = env('SECRET_KEY', default='change-me-set-SECRET_KEY-in-vercel-env')
-DEBUG = env.bool('DEBUG', default=False)
-ALLOWED_HOSTS = env.list(
-    'ALLOWED_HOSTS',
-    default=['localhost', '127.0.0.1', '.vercel.app'],
-)
+ALLOWED_HOSTS = [
+    'localhost', 
+    '127.0.0.1', 
+    '.vercel.app',
+    '.onrender.com'  # Added Render support explicitly
+]
 
 # -------------------------
-# CORS
+# CORS Settings
 # -------------------------
-CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
+CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
     "http://127.0.0.1:8000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3000",
-])
-STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+    "https://restaurant-management-system-pi-one.vercel.app"  # Cleaned up trail slashes
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # -------------------------
@@ -60,18 +54,26 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'whitenoise.runserver_nostatic',
-    # Channels
     'channels',
-    # Your apps
+    
+    # Your local apps
     'Customer',
     'Items',
-    # 'Inventory',
     'Menus',
     'OrderItem',
     'Staff',
     'Order',
     'Useraccount',
-    # Third-party
+    'InventoryItems',
+    'chatbot',
+    'Payment.apps.PaymentConfig',
+    'sms',
+    'mambosmsbulk',
+    'mambosmssingle',
+    'mambosmsbalance',
+    'whatsapplinkin',
+    
+    # Third-party extensions
     'rest_framework',
     'rest_framework.authtoken',
     'django.contrib.sites',
@@ -82,47 +84,15 @@ INSTALLED_APPS = [
     'dj_rest_auth',
     'dj_rest_auth.registration',
     'djoser',
-    'sms',
-    'mambosmsbulk',
-    
-    'mambosmssingle',
-    'whatsapplinkin',
-    'mambosmsbalance',
-    'chatbot',
-    'Payment.apps.PaymentConfig',
-    'InventoryItems',
-    # 'staff',
 ]
-# redis config
-# CACHES = {
-#     "default": {
-#         "BACKEND": "django_redis.cache.RedisCache",
-#         "LOCATION": "redis://127.0.0.1:6379/1",
-#         "OPTIONS": {
-#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-#         }
-#     }
-# }
-# settings.py
 
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-        # ← public can READ, must login to CREATE/UPDATE/DELETE
-    ],
-}
 # -------------------------
 # Middleware
 # -------------------------
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', # Add right here
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Optimized placement for static assets
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -131,8 +101,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 # -------------------------
@@ -161,30 +129,27 @@ TEMPLATES = [
 ]
 
 # -------------------------
-# Database
+# Database Configuration (Aiven MySQL + SSL)
 # -------------------------
-if env('DB_NAME', default=''):
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': env('DB_NAME'),
-            'USER': env('DB_USER'),
-            'PASSWORD': env('DB_PASSWORD'),
-            'HOST': env('DB_HOST', default='localhost'),
-            'PORT': env('DB_PORT', default='3306'),
-        }
-    }
-else:
-    # Fallback for Vercel bootstrap when DB env vars are not set yet
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        engine='django.db.backends.mysql', 
+        conn_max_age=600,
+    )
+}
+
+# Enforce secure SSL mode connections for Aiven cluster
+if 'default' in DATABASES and DATABASES['default'].get('ENGINE') == 'django.db.backends.mysql':
+    DATABASES['default']['OPTIONS'] = {
+        'ssl': {
+            'ssl-mode': 'REQUIRED'
         }
     }
 
-# django-allauth: MariaDB does not support conditional unique constraints (harmless)
+# django-allauth exception handler
 SILENCED_SYSTEM_CHECKS = ['models.W036']
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # -------------------------
 # Password validation
@@ -212,13 +177,14 @@ USE_L10N = True
 USE_TZ = True
 
 # -------------------------
-# Static files
+# Static assets configuration
 # -------------------------
-STATIC_URL = 'static/'
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # -------------------------
-# REST Framework
+# Django Rest Framework Settings
 # -------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -233,8 +199,6 @@ REST_FRAMEWORK = {
 # -------------------------
 # Simple JWT Configuration
 # -------------------------
-from datetime import timedelta
-
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -253,51 +217,27 @@ SIMPLE_JWT = {
 }
 
 # -------------------------
-# Email Configuration (SendGrid SMTP - Single Sender)
+# Email Configuration (SendGrid SMTP)
 # -------------------------
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.sendgrid.net'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'apikey'  # This is literally 'apikey'
+EMAIL_HOST_USER = 'apikey'
 EMAIL_HOST_PASSWORD = config('SENDGRID_API_KEY', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='infonet20th@gmail.com')
 SERVER_EMAIL = config('SERVER_EMAIL', default='infonet20th@gmail.com')
 
 # -------------------------
-
-# TWILIO SMS CONFIGURATION
-# TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID')
-# TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN')
-# TWILIO_PHONE_NUMBER = config('TWILIO_PHONE_NUMBER')
-# # Webhook security
-# TWILIO_WEBHOOK_AUTH_TOKEN = config('TWILIO_WEBHOOK_AUTH_TOKEN', default='')
-# Site Configuration
-
-# --------------------------------
-# AFRICAN TALK SMS CONFIG
-
-
-
-
-
-# MAMBO SMS
-
-
-
-from dotenv import load_dotenv
-
-load_dotenv()
-MAMBO_SMS_API_KEY = os.getenv('MAMBO_SMS_SENDER_ID')
+# Mambo SMS Credentials
+# -------------------------
+MAMBO_SMS_SENDER_ID = os.getenv('MAMBO_SMS_SENDER_ID')
 MAMBO_SMS_API_KEY = os.getenv('MAMBO_SMS_API_KEY')
 MAMBO_SMS_BASE_URL = os.getenv('MAMBO_SMS_BASE_URL', 'https://api.mambo.co.tz')
 
-
-
-
-
-# ..........
-# Celery configuration
+# -------------------------
+# Celery setup options
+# -------------------------
 CELERY_BROKER_URL = 'redis://localhost:6379'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379'
 CELERY_ACCEPT_CONTENT = ['json']
@@ -306,12 +246,14 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
 # -------------------------
+# Identity Framework Config
+# -------------------------
 SITE_ID = 1
 SITE_NAME = config('SITE_NAME', default='ReactLife')
 DOMAIN = config('FRONTEND_DOMAIN', default='localhost:5173')
 
 # -------------------------
-# Djoser Configuration
+# Djoser Engine Setup
 # -------------------------
 DJOSER = {
     'DOMAIN': DOMAIN,
@@ -331,11 +273,6 @@ DJOSER = {
 }
 
 # -------------------------
-# Sites Framework
-# -------------------------
-SITE_ID = 1
-
-# -------------------------
 # Authentication Backends
 # -------------------------
 AUTHENTICATION_BACKENDS = (
@@ -344,7 +281,7 @@ AUTHENTICATION_BACKENDS = (
 )
 
 # -------------------------
-# Google OAuth
+# Google OAuth Configuration
 # -------------------------
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
@@ -355,26 +292,23 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 # -------------------------
-# dj-rest-auth config
+# Rest Auth Configuration
 # -------------------------
 REST_AUTH = {
     'USE_JWT': True,
     'JWT_AUTH_COOKIE': 'access_token',
     'JWT_AUTH_REFRESH_COOKIE': 'refresh_token',
     'JWT_AUTH_HTTPONLY': True,
-    'JWT_AUTH_SECURE': False,  # Change to True in production
+    'JWT_AUTH_SECURE': not DEBUG,  # Toggles True in production automatically
     'JWT_AUTH_SAMESITE': 'Lax',
     'USER_DETAILS_SERIALIZER': 'dj_rest_auth.serializers.UserDetailsSerializer',
 }
 
-# -------------------------
-# allauth config
-# -------------------------
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
 
 # -------------------------
-# Suppress warnings
+# AllAuth Warnings Filter
 # -------------------------
 warnings.filterwarnings(
     'ignore',
@@ -389,15 +323,12 @@ warnings.filterwarnings(
     module='dj_rest_auth.registration.serializers'
 )
 
-# -------------------------
-# Socialaccount config
-# -------------------------
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 
 # -------------------------
-# Channels Configuration
+# Channels Real-time Layers
 # -------------------------
 CHANNEL_LAYERS = {
     'default': {
@@ -407,1146 +338,5 @@ CHANNEL_LAYERS = {
         },
     },
 }
-# OPEN_AI KEY
-from dotenv import load_dotenv
-load_dotenv()  # loads .env
 
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-
-
-# -------------------------
-
-# Simple JWT Configuration
-
-# -------------------------
-
-from datetime import timedelta
-
-
-
-SIMPLE_JWT = {
-
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
-
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-
-    'ROTATE_REFRESH_TOKENS': True,
-
-    'BLACKLIST_AFTER_ROTATION': True,
-
-    'UPDATE_LAST_LOGIN': True,
-
-    'ALGORITHM': 'HS256',
-
-    'SIGNING_KEY': SECRET_KEY,
-
-    'VERIFYING_KEY': None,
-
-    'AUTH_HEADER_TYPES': ('Bearer',),
-
-    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-
-    'USER_ID_FIELD': 'id',
-
-    'USER_ID_CLAIM': 'user_id',
-
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-
-    'TOKEN_TYPE_CLAIM': 'token_type',
-
-}
-
-
-
-# -------------------------
-
-# Email Configuration (SendGrid SMTP - Single Sender)
-
-# -------------------------
-
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-
-EMAIL_HOST = 'smtp.sendgrid.net'
-
-EMAIL_PORT = 587
-
-EMAIL_USE_TLS = True
-
-EMAIL_HOST_USER = 'apikey'  # This is literally 'apikey'
-
-EMAIL_HOST_PASSWORD = config('SENDGRID_API_KEY', default='')
-
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='infonet20th@gmail.com')
-
-SERVER_EMAIL = config('SERVER_EMAIL', default='infonet20th@gmail.com')
-
-
-
-# -------------------------
-
-
-
-# TWILIO SMS CONFIGURATION
-
-# TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID')
-
-# TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN')
-
-# TWILIO_PHONE_NUMBER = config('TWILIO_PHONE_NUMBER')
-
-# # Webhook security
-
-# TWILIO_WEBHOOK_AUTH_TOKEN = config('TWILIO_WEBHOOK_AUTH_TOKEN', default='')
-
-# Site Configuration
-
-
-
-# --------------------------------
-
-# AFRICAN TALK SMS CONFIG
-
-
-
-
-
-
-
-
-
-
-
-# MAMBO SMS
-
-
-
-
-
-
-
-from dotenv import load_dotenv
-
-
-
-load_dotenv()
-
-MAMBO_SMS_API_KEY = os.getenv('MAMBO_SMS_SENDER_ID')
-
-MAMBO_SMS_API_KEY = os.getenv('MAMBO_SMS_API_KEY')
-
-MAMBO_SMS_BASE_URL = os.getenv('MAMBO_SMS_BASE_URL', 'https://api.mambo.co.tz')
-
-
-
-
-
-
-
-
-
-
-
-# ..........
-
-# Celery configuration
-
-CELERY_BROKER_URL = 'redis://localhost:6379'
-
-CELERY_RESULT_BACKEND = 'redis://localhost:6379'
-
-CELERY_ACCEPT_CONTENT = ['json']
-
-CELERY_TASK_SERIALIZER = 'json'
-
-CELERY_RESULT_SERIALIZER = 'json'
-
-CELERY_TIMEZONE = 'UTC'
-
-
-
-# -------------------------
-
-SITE_ID = 1
-
-SITE_NAME = config('SITE_NAME', default='ReactLife')
-
-DOMAIN = config('FRONTEND_DOMAIN', default='localhost:5173')
-
-
-
-# -------------------------
-
-# Djoser Configuration
-
-# -------------------------
-
-DJOSER = {
-
-    'DOMAIN': DOMAIN,
-
-    'SITE_NAME': SITE_NAME,
-
-    'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
-
-    'ACTIVATION_URL': 'activate/{uid}/{token}',
-
-    'SEND_ACTIVATION_EMAIL': True,
-
-    'SEND_CONFIRMATION_EMAIL': True,
-
-    'PASSWORD_CHANGED_EMAIL_CONFIRMATION': True,
-
-    'PASSWORD_RESET_CONFIRM_RETYPE': True,
-
-    'EMAIL': {
-
-        'activation': 'djoser.email.ActivationEmail',
-
-        'confirmation': 'djoser.email.ConfirmationEmail',
-
-        'password_reset': 'djoser.email.PasswordResetEmail',
-
-        'password_changed_confirmation': 'djoser.email.PasswordChangedConfirmationEmail',
-
-    },
-
-}
-
-
-
-# -------------------------
-
-# Sites Framework
-
-# -------------------------
-
-SITE_ID = 1
-
-
-
-# -------------------------
-
-# Authentication Backends
-
-# -------------------------
-
-AUTHENTICATION_BACKENDS = (
-
-    'django.contrib.auth.backends.ModelBackend',
-
-    'allauth.account.auth_backends.AuthenticationBackend',
-
-)
-
-
-
-# -------------------------
-
-# Google OAuth
-
-# -------------------------
-
-SOCIALACCOUNT_PROVIDERS = {
-
-    'google': {
-
-        'SCOPE': ['profile', 'email'],
-
-        'AUTH_PARAMS': {'access_type': 'online'},
-
-        'OAUTH_PKCE_ENABLED': True,
-
-    }
-
-}
-
-
-
-# -------------------------
-
-# dj-rest-auth config
-
-# -------------------------
-
-REST_AUTH = {
-
-    'USE_JWT': True,
-
-    'JWT_AUTH_COOKIE': 'access_token',
-
-    'JWT_AUTH_REFRESH_COOKIE': 'refresh_token',
-
-    'JWT_AUTH_HTTPONLY': True,
-
-    'JWT_AUTH_SECURE': False,  # Change to True in production
-
-    'JWT_AUTH_SAMESITE': 'Lax',
-
-    'USER_DETAILS_SERIALIZER': 'dj_rest_auth.serializers.UserDetailsSerializer',
-
-}
-
-
-
-# -------------------------
-
-# allauth config
-
-# -------------------------
-
-ACCOUNT_LOGIN_METHODS = {"email"}
-
-ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
-
-
-
-# -------------------------
-
-# Suppress warnings
-
-# -------------------------
-
-warnings.filterwarnings(
-
-    'ignore',
-
-    message='app_settings.USERNAME_REQUIRED is deprecated',
-
-    category=UserWarning,
-
-    module='dj_rest_auth.registration.serializers'
-
-)
-
-warnings.filterwarnings(
-
-    'ignore',
-
-    message='app_settings.EMAIL_REQUIRED is deprecated',
-
-    category=UserWarning,
-
-    module='dj_rest_auth.registration.serializers'
-
-)
-
-
-
-# -------------------------
-
-# Socialaccount config
-
-# -------------------------
-
-SOCIALACCOUNT_AUTO_SIGNUP = True
-
-SOCIALACCOUNT_EMAIL_REQUIRED = True
-
-SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
-
-
-
-# -------------------------
-
-# Channels Configuration
-
-# -------------------------
-
-CHANNEL_LAYERS = {
-
-    'default': {
-
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-
-        'CONFIG': {
-
-            "hosts": [('127.0.0.1', 6379)],
-
-        },
-
-    },
-
-}
-
-# OPEN_AI KEY
-
-from dotenv import load_dotenv
-
-load_dotenv()  # loads .env
-
-
-
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-from dotenv import load_dotenv
-
-load_dotenv()  # loads .env
-
-
-
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-# Simple JWT Configuration
-
-
-
-# -------------------------
-
-
-
-from datetime import timedelta
-
-
-
-
-
-
-
-SIMPLE_JWT = {
-
-
-
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
-
-
-
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-
-
-
-    'ROTATE_REFRESH_TOKENS': True,
-
-
-
-    'BLACKLIST_AFTER_ROTATION': True,
-
-
-
-    'UPDATE_LAST_LOGIN': True,
-
-
-
-    'ALGORITHM': 'HS256',
-
-
-
-    'SIGNING_KEY': SECRET_KEY,
-
-
-
-    'VERIFYING_KEY': None,
-
-
-
-    'AUTH_HEADER_TYPES': ('Bearer',),
-
-
-
-    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-
-
-
-    'USER_ID_FIELD': 'id',
-
-
-
-    'USER_ID_CLAIM': 'user_id',
-
-
-
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-
-
-
-    'TOKEN_TYPE_CLAIM': 'token_type',
-
-
-
-}
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-# Email Configuration (SendGrid SMTP - Single Sender)
-
-
-
-# -------------------------
-
-
-
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-
-
-
-EMAIL_HOST = 'smtp.sendgrid.net'
-
-
-
-EMAIL_PORT = 587
-
-
-
-EMAIL_USE_TLS = True
-
-
-
-EMAIL_HOST_USER = 'apikey'  # This is literally 'apikey'
-
-
-
-EMAIL_HOST_PASSWORD = config('SENDGRID_API_KEY', default='')
-
-
-
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='infonet20th@gmail.com')
-
-
-
-SERVER_EMAIL = config('SERVER_EMAIL', default='infonet20th@gmail.com')
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-
-
-
-
-# TWILIO SMS CONFIGURATION
-
-
-
-# TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID')
-
-
-
-# TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN')
-
-
-
-# TWILIO_PHONE_NUMBER = config('TWILIO_PHONE_NUMBER')
-
-
-
-# # Webhook security
-
-
-
-# TWILIO_WEBHOOK_AUTH_TOKEN = config('TWILIO_WEBHOOK_AUTH_TOKEN', default='')
-
-
-
-# Site Configuration
-
-
-
-
-
-
-
-# --------------------------------
-
-
-
-# AFRICAN TALK SMS CONFIG
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# MAMBO SMS
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-from dotenv import load_dotenv
-
-
-
-
-
-
-
-load_dotenv()
-
-
-
-MAMBO_SMS_API_KEY = os.getenv('MAMBO_SMS_SENDER_ID')
-
-
-
-MAMBO_SMS_API_KEY = os.getenv('MAMBO_SMS_API_KEY')
-
-
-
-MAMBO_SMS_BASE_URL = os.getenv('MAMBO_SMS_BASE_URL', 'https://api.mambo.co.tz')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ..........
-
-
-
-# Celery configuration
-
-
-
-CELERY_BROKER_URL = 'redis://localhost:6379'
-
-
-
-CELERY_RESULT_BACKEND = 'redis://localhost:6379'
-
-
-
-CELERY_ACCEPT_CONTENT = ['json']
-
-
-
-CELERY_TASK_SERIALIZER = 'json'
-
-
-
-CELERY_RESULT_SERIALIZER = 'json'
-
-
-
-CELERY_TIMEZONE = 'UTC'
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-SITE_ID = 1
-
-
-
-SITE_NAME = config('SITE_NAME', default='ReactLife')
-
-
-
-DOMAIN = config('FRONTEND_DOMAIN', default='localhost:5173')
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-# Djoser Configuration
-
-
-
-# -------------------------
-
-
-
-DJOSER = {
-
-
-
-    'DOMAIN': DOMAIN,
-
-
-
-    'SITE_NAME': SITE_NAME,
-
-
-
-    'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
-
-
-
-    'ACTIVATION_URL': 'activate/{uid}/{token}',
-
-
-
-    'SEND_ACTIVATION_EMAIL': True,
-
-
-
-    'SEND_CONFIRMATION_EMAIL': True,
-
-
-
-    'PASSWORD_CHANGED_EMAIL_CONFIRMATION': True,
-
-
-
-    'PASSWORD_RESET_CONFIRM_RETYPE': True,
-
-
-
-    'EMAIL': {
-
-
-
-        'activation': 'djoser.email.ActivationEmail',
-
-
-
-        'confirmation': 'djoser.email.ConfirmationEmail',
-
-
-
-        'password_reset': 'djoser.email.PasswordResetEmail',
-
-
-
-        'password_changed_confirmation': 'djoser.email.PasswordChangedConfirmationEmail',
-
-
-
-    },
-
-
-
-}
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-# Sites Framework
-
-
-
-# -------------------------
-
-
-
-SITE_ID = 1
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-# Authentication Backends
-
-
-
-# -------------------------
-
-
-
-AUTHENTICATION_BACKENDS = (
-
-
-
-    'django.contrib.auth.backends.ModelBackend',
-
-
-
-    'allauth.account.auth_backends.AuthenticationBackend',
-
-
-
-)
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-# Google OAuth
-
-
-
-# -------------------------
-
-
-
-SOCIALACCOUNT_PROVIDERS = {
-
-
-
-    'google': {
-
-
-
-        'SCOPE': ['profile', 'email'],
-
-
-
-        'AUTH_PARAMS': {'access_type': 'online'},
-
-
-
-        'OAUTH_PKCE_ENABLED': True,
-
-
-
-    }
-
-
-
-}
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-# dj-rest-auth config
-
-
-
-# -------------------------
-
-
-
-REST_AUTH = {
-
-
-
-    'USE_JWT': True,
-
-
-
-    'JWT_AUTH_COOKIE': 'access_token',
-
-
-
-    'JWT_AUTH_REFRESH_COOKIE': 'refresh_token',
-
-
-
-    'JWT_AUTH_HTTPONLY': True,
-
-
-
-    'JWT_AUTH_SECURE': False,  # Change to True in production
-
-
-
-    'JWT_AUTH_SAMESITE': 'Lax',
-
-
-
-    'USER_DETAILS_SERIALIZER': 'dj_rest_auth.serializers.UserDetailsSerializer',
-
-
-
-}
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-# allauth config
-
-
-
-# -------------------------
-
-
-
-ACCOUNT_LOGIN_METHODS = {"email"}
-
-
-
-ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-# Suppress warnings
-
-
-
-# -------------------------
-
-
-
-warnings.filterwarnings(
-
-
-
-    'ignore',
-
-
-
-    message='app_settings.USERNAME_REQUIRED is deprecated',
-
-
-
-    category=UserWarning,
-
-
-
-    module='dj_rest_auth.registration.serializers'
-
-
-
-)
-
-
-
-warnings.filterwarnings(
-
-
-
-    'ignore',
-
-
-
-    message='app_settings.EMAIL_REQUIRED is deprecated',
-
-
-
-    category=UserWarning,
-
-
-
-    module='dj_rest_auth.registration.serializers'
-
-
-
-)
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-# Socialaccount config
-
-
-
-# -------------------------
-
-
-
-SOCIALACCOUNT_AUTO_SIGNUP = True
-
-
-
-SOCIALACCOUNT_EMAIL_REQUIRED = True
-
-
-
-SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
-
-
-
-
-
-
-
-# -------------------------
-
-
-
-# Channels Configuration
-
-
-
-# -------------------------
-
-
-
-CHANNEL_LAYERS = {
-
-
-
-    'default': {
-
-
-
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-
-
-
-        'CONFIG': {
-
-
-
-            "hosts": [('127.0.0.1', 6379)],
-
-
-
-        },
-
-
-
-    },
-
-
-
-}
-
-
-
-# OPEN_AI KEY
-
-
-
-from dotenv import load_dotenv
-
-
-
-load_dotenv()  # loads .env
-
-
-
-
-
-
-
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-#Vercel Conf for React Front end
-
-
-import os
-import dj_database_url
-
-# Security configurations
-DEBUG = os.environ.get("DEBUG", "False") == "True"
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
-
-# Database connection parsing
-import os
-import dj_database_url
-
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
-        engine='django.db.backends.mysql', 
-        conn_max_age=600,
-    )
-}
-
-# Static file settings for WhiteNoise
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
-# Allow your Vercel React app to communicate with Django
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173/,  # Your local React development URL
-    "https://restaurant-management-system-pi-one.vercel.app/"  # REPLACE with your actual Vercel domain!
-]
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
