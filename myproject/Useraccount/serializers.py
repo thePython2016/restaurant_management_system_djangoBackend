@@ -24,8 +24,21 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
     
     def validate(self, attrs):
+        username = (attrs.get("username") or "").strip()
+        password = attrs.get("password")
+
+        # Allow sign-in with email address (frontend sends email in username field)
+        if username and "@" in username:
+            user = User.objects.filter(email__iexact=username).first()
+            if user:
+                attrs["username"] = user.username
+            else:
+                raise serializers.ValidationError(
+                    {"detail": "No active account found with the given credentials"}
+                )
+
         data = super().validate(attrs)
-        
+
         # Add user data to response
         data['user'] = {
             'id': self.user.id,

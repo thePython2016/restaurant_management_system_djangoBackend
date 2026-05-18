@@ -13,10 +13,16 @@
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import change_password, test_google_auth, GoogleLogin, custom_password_reset, custom_registration
+from .serializers import CustomTokenObtainPairSerializer
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
 
 urlpatterns = [
-    # JWT Authentication
-    path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    # JWT Authentication (supports username or email)
+    path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     # Password management
