@@ -33,7 +33,10 @@ ALLOWED_HOSTS = [
     # ".onrender.com",
     'restaurant-management-system-9p47.onrender.com',
     'restaurant-management-system-pi-one.vercel.app',
-    'https://restaurant-management-system-dun-kappa.vercel.app',
+     'restaurant-management-system-9p47.onrender.com',
+    'restaurant-management-system-pi-one.vercel.app',
+    'restaurant-management-system-one-pink.vercel.app',
+    'restaurant-management-system-dun-kappa.vercel.app',
    
     
 ]
@@ -53,7 +56,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3000",
-    'https://restaurant-management-system-dun-kappa.vercel.app'
+    "https://restaurant-management-system-pi-one.vercel.app",
+    "https://restaurant-management-system-one-pink.vercel.app",
+    "https://restaurant-management-system-dun-kappa.vercel.app",
     
 ]
 
