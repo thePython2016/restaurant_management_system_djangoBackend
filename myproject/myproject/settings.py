@@ -33,7 +33,7 @@ ALLOWED_HOSTS = [
     # ".onrender.com",
     'restaurant-management-system-9p47.onrender.com',
     'restaurant-management-system-pi-one.vercel.app',
-    https://restaurant-management-system-dun-kappa.vercel.app/
+    https://restaurant-management-system-dun-kappa.vercel.app/,
     https://restaurant-management-system-dun-kappa.vercel.app/
     
 ]
